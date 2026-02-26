@@ -11,6 +11,10 @@ on:
         description: "Hytale game versions (comma-separated)"
         type: string
         default: "1.0-SNAPSHOT"
+      file-type:
+        description: "Project file type, supported values: jar, zip"
+        type: string
+        default: "jar"
     secrets:
       MODTALE_API_KEY:
         description: "Modtale API key for authentication"
@@ -109,18 +113,19 @@ jobs:
             echo "changelog=Automated Build & Release from GitHub" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download jar from release
+      - name: Download file from release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG_NAME="${{ steps.resolve.outputs.tag_name }}"
           VERSION="${{ steps.resolve.outputs.version }}"
           ARTIFACT_ID="${{ steps.resolve.outputs.artifact_id }}"
-          JAR_NAME="${ARTIFACT_ID}-${VERSION}.jar"
-          
-          echo "Downloading jar from release: $JAR_NAME"
-          gh release download "$TAG_NAME" --repo "${{ github.repository }}" --pattern "$JAR_NAME" || {
-            echo "ERROR: Failed to download $JAR_NAME from release $TAG_NAME"
+          FILE_TYPE="${{ inputs.file-type }}"
+          FILE_NAME="${ARTIFACT_ID}-${VERSION}.${FILE_TYPE}"
+                    
+          echo "Downloading file from release: $FILE_NAME"
+          gh release download "$TAG_NAME" --repo "${{ github.repository }}" --pattern "$FILE_NAME" || {
+            echo "ERROR: Failed to download $FILE_NAME from release $TAG_NAME"
             exit 1
           }
           
@@ -141,15 +146,16 @@ jobs:
           
           VERSION="${{ steps.resolve.outputs.version }}"
           ARTIFACT_ID="${{ steps.resolve.outputs.artifact_id }}"
-          JAR_PATH="./${ARTIFACT_ID}-${VERSION}.jar"
+          FILE_TYPE="${{ inputs.file-type }}"
+          FILE_PATH="./${ARTIFACT_ID}-${VERSION}.${FILE_TYPE}"
           
-          if [[ ! -f "$JAR_PATH" ]]; then
-            echo "ERROR: Could not find jar file at $JAR_PATH"
+          if [[ ! -f "$FILE_PATH" ]]; then
+            echo "ERROR: Could not find jar file at $FILE_PATH"
             ls -la
             exit 1
           fi
           
-          echo "Found Jar: $JAR_PATH"
+          echo "Found file: $FILE_PATH"
           echo "Publishing Version: $VERSION"
           echo "Game Versions: ${{ inputs.game-versions }}"
           
@@ -160,7 +166,7 @@ jobs:
           
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://api.modtale.net/api/v1/projects/$MODTALE_PROJECT_ID/versions" \
             -H "X-MODTALE-KEY: $MODTALE_API_KEY" \
-            -F "file=@$JAR_PATH" \
+            -F "file=@$FILE_PATH" \
             -F "channel=${{ steps.resolve.outputs.channel }}" \
             -F "versionNumber=$VERSION" \
             -F "gameVersions=${{ inputs.game-versions }}" \

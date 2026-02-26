@@ -19,6 +19,10 @@ on:
         description: "Project relations (format: projectslug:relationType, comma-separated)"
         type: string
         default: ""
+      file-type:
+        description: "Project file type, supported values: jar, zip"
+        type: string
+        default: "jar"
     secrets:
       CURSEFORGE_TOKEN:
         description: "CurseForge API token for authentication"
@@ -128,18 +132,19 @@ jobs:
             echo "changelog=Automated Build & Release from GitHub" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download jar from release
+      - name: Download file from release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG_NAME="${{ steps.resolve.outputs.tag_name }}"
           VERSION="${{ steps.resolve.outputs.version }}"
           ARTIFACT_ID="${{ steps.resolve.outputs.artifact_id }}"
-          JAR_NAME="${ARTIFACT_ID}-${VERSION}.jar"
+          FILE_TYPE="${{ inputs.file-type }}"
+          FILE_NAME="${ARTIFACT_ID}-${VERSION}.${FILE_TYPE}"
           
-          echo "Downloading jar from release: $JAR_NAME"
-          gh release download "$TAG_NAME" --repo "${{ github.repository }}" --pattern "$JAR_NAME" || {
-            echo "ERROR: Failed to download $JAR_NAME from release $TAG_NAME"
+          echo "Downloading file from release: $FILE_NAME"
+          gh release download "$TAG_NAME" --repo "${{ github.repository }}" --pattern "$FILE_NAME" || {
+            echo "ERROR: Failed to download $FILE_NAME from release $TAG_NAME"
             exit 1
           }
           
@@ -160,15 +165,16 @@ jobs:
           
           VERSION="${{ steps.resolve.outputs.version }}"
           ARTIFACT_ID="${{ steps.resolve.outputs.artifact_id }}"
-          JAR_PATH="./${ARTIFACT_ID}-${VERSION}.jar"
+          FILE_TYPE="${{ inputs.file-type }}"
+          FILE_PATH="./${ARTIFACT_ID}-${VERSION}.${FILE_TYPE}"
           
-          if [[ ! -f "$JAR_PATH" ]]; then
-            echo "ERROR: Could not find jar file at $JAR_PATH"
+          if [[ ! -f "$FILE_PATH" ]]; then
+            echo "ERROR: Could not find file at $FILE_PATH"
             ls -la
             exit 1
           fi
           
-          echo "Found Jar: $JAR_PATH"
+          echo "Found file: $FILE_PATH"
           echo "Publishing Version: $VERSION"
           echo "Game Versions: ${{ inputs.game-versions }}"
           
@@ -212,7 +218,7 @@ jobs:
             "https://${{ inputs.game-endpoint }}.curseforge.com/api/projects/$CURSEFORGE_PROJECT_ID/upload-file" \
             -H "X-Api-Token: $CURSEFORGE_TOKEN" \
             -F "metadata=<metadata.json" \
-            -F "file=@$JAR_PATH")
+            -F "file=@$FILE_PATH")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
           BODY=$(echo "$RESPONSE" | sed '$d')
