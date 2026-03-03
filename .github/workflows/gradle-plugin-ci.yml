@@ -22,6 +22,11 @@ on:
         description: "Path to manifest.json file"
         type: string
         default: "src/main/resources/manifest.json"
+      use-fat-jar:
+        description: "Use the fat/uber jar instead of the regular jar"
+        type: boolean
+        default: false
+        required: false
     secrets:
       MAVEN_REPO_URL:
         description: "Maven repository URL for dependencies"
@@ -343,15 +348,23 @@ jobs:
         with:
           name: build-artifacts
 
-      - name: Generate release archive
-        if: ${{ success() }}
+      - name: Generate release archive (fat jar)
+        if: ${{ success() && inputs.use-fat-jar }}
         run: |
-          ls -la
+          mkdir dist
+          mv ${{ needs.build.outputs.artifact_id }}-*-all.jar dist/
+          cd dist
+          zip -r ../${{ needs.build.outputs.artifact_id }}-${{ needs.build.outputs.version }}.zip .
+
+      - name: Generate release archive (regular jar)
+        if: ${{ success() && !inputs.use-fat-jar }}
+        run: |
           mkdir dist
           mv ${{ needs.build.outputs.artifact_id }}-*.jar dist/
           cd dist
           zip -r ../${{ needs.build.outputs.artifact_id }}-${{ needs.build.outputs.version }}.zip .
 
+          
       - name: Create GitHub Release
         if: ${{ success() }}
         uses: softprops/action-gh-release@v2
