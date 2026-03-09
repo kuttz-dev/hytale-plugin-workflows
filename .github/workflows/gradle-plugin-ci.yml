@@ -352,7 +352,7 @@ jobs:
         if: ${{ success() && inputs.use-fat-jar }}
         run: |
           mkdir dist
-          mv ${{ needs.build.outputs.artifact_id }}-*-all.jar dist/
+          mv ${{ needs.build.outputs.artifact_id }}-*-all.jar dist/${{ needs.build.outputs.artifact_id }}-${{ needs.build.outputs.version }}.jar
           cd dist
           zip -r ../${{ needs.build.outputs.artifact_id }}-${{ needs.build.outputs.version }}.zip .
 
